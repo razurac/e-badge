@@ -36,10 +36,10 @@ if args["prepared"] and (args["file_black"] is None or args["file_black"] is Non
 # Basic image functionality
 ####
 # Converter for single images
-def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=args["bicolor"], trsh_of=args["trsh_of"]):
+def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=args["bicolor"], trsh_of=args["trsh_of"], rotation=args["rotate"]):
     image_file = Image.open(src_file)
     size = (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT)
-    if args["rotate"] != 0:
+    if rotation != 0:
         image_file = image_file.rotate(args["rotate"])
     image_file = ImageOps.fit(image_file, size, Image.ANTIALIAS, centering=(0.0, 0.5))
     image_file = image_file.convert('L')
@@ -106,12 +106,18 @@ def tui():
     class ConvertForm(npyscreen.ActionForm):
         def create(self):
             self.file = self.add(npyscreen.TitleFilenameCombo, name='Input File')
+            self.threshold = self.add(npyscreen.TitleSlider, out_of=256, step=1, label=True, value=args["threshold"], name='Threshold')
+            self.threshold_of = self.add(npyscreen.TitleSlider, out_of=256, step=1, label=True, value=args["trsh_of"], name='Threshold Offset')
+            self.rotation = self.add(npyscreen.TitleSlider, out_of=270, step=90, label=True, value=args["rotate"], name='Rotation')
+            self.bicolor = self.add(npyscreen.CheckBox, name='Bicolor')
+            self.invert = self.add(npyscreen.CheckBox, name='Invert B/R')
+
 
         def on_ok(self):
             npyscreen.blank_terminal()
-            picture = convert_image(src_file=self.file.value)
-            push_image(picture)
-            self.parentApp.setNextForm(None)
+            picture = convert_image(src_file=self.file.value, threshold=int(self.threshold.value), bicolor=self.bicolor.value, trsh_of=int(self.threshold_of.value), rotation=int(self.rotation.value))
+            push_image(picture, flip=self.invert.value)
+            self.parentApp.setNextForm('MAIN')
 
         def on_cancel(self):
             self.parentApp.setNextForm(None)

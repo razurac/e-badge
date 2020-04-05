@@ -94,13 +94,20 @@ def tui():
         def create(self):
             self.choice = self.add(npyscreen.TitleSelectOne,
                                    name='Choose Method',
-                                   values=['Convert', 'Load'])
+                                   values=['Convert', 'Load', 'Clear'])
 
         def on_ok(self):
             if 0 in self.choice.value:
                 self.parentApp.setNextForm('CONVERT')
-            else:
+            elif 1 in self.choice.value:
                 self.parentApp.setNextForm('LOAD')
+            elif 2 in self.choice.value:
+                npyscreen.blank_terminal()
+                epd = epd4in2b.EPD()
+                epd.init()
+                epd.Clear(0xFF)
+                epd.sleep()
+                self.parentApp.setNextForm('MAIN')
 
         def on_cancel(self):
             notify_result = npyscreen.notify_ok_cancel('Are you sure you want to exit?', title='Exit')

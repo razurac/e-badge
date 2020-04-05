@@ -39,7 +39,8 @@ if args["prepared"] and (args["file_black"] is None or args["file_black"] is Non
 def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=args["bicolor"], trsh_of=args["trsh_of"]):
     image_file = Image.open(src_file)
     size = (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT)
-    image_file = image_file.rotate(args["rotate"])
+    if args["rotate"] != 0:
+        image_file = image_file.rotate(args["rotate"])
     image_file = ImageOps.fit(image_file, size, Image.ANTIALIAS, centering=(0.0, 0.5))
     image_file = image_file.convert('L')
     image_b = image_file.point(lambda p: p > threshold and 255)
@@ -88,9 +89,39 @@ def push_image(pic, flip=args["invert"]):
 # The TUI
 #####
 def tui():
-    pass
 
+    class ChooseForm(npyscreen.ActionForm):
+        def create(self):
+            self.choice = self.add(npyscreen.TitleSelectOne, name='Choose Method', max_height=2, values=['Convert', 'Load'])
 
+        def on_ok(self):
+            if 0 in self.choice.value:
+                self.parentApp.setNextForm('CONVERT')
+            else:
+                self.parentApp.setNextForm(None)
+
+        def on_cancel(self):
+            self.parentApp.setNextForm(None)
+
+    class ConvertForm(npyscreen.ActionForm):
+        def create(self):
+            self.file = self.add(npyscreen.TitleFilenameCombo, name='Input File')
+
+        def on_ok(self):
+            npyscreen.blank_terminal()
+            picture = convert_image(src_file=self.file.value)
+            push_image(picture)
+            self.parentApp.setNextForm(None)
+
+        def on_cancel(self):
+            self.parentApp.setNextForm(None)
+
+    class TUI(npyscreen.NPSAppManaged):
+        def onStart(self):
+            self.addForm('MAIN', ChooseForm, name='Choice')
+            self.addForm('CONVERT', ConvertForm, name='Convert Mode')
+
+    TUI().run()
 
 def main():
     if args["prepared"]:

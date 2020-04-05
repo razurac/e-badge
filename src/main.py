@@ -62,7 +62,7 @@ def load_prepared_image(file_b=args["file_black"], file_r=args["file_red"]):
 
 # Pushes actual image
 def push_image(pic, flip=args["invert"]):
-    blackimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)
+#    blackimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255) # Might be obsolete
     redimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)
 
     if isinstance(pic, tuple):
@@ -92,40 +92,77 @@ def tui():
 
     class ChooseForm(npyscreen.ActionForm):
         def create(self):
-            self.choice = self.add(npyscreen.TitleSelectOne, name='Choose Method', max_height=2, values=['Convert', 'Load'])
+            self.choice = self.add(npyscreen.TitleSelectOne,
+                                   name='Choose Method',
+                                   values=['Convert', 'Load'])
 
         def on_ok(self):
             if 0 in self.choice.value:
                 self.parentApp.setNextForm('CONVERT')
             else:
-                self.parentApp.setNextForm(None)
+                self.parentApp.setNextForm('LOAD')
 
         def on_cancel(self):
-            self.parentApp.setNextForm(None)
+            notify_result = npyscreen.notify_ok_cancel('Are you sure you want to exit?', title='Exit')
+            if notify_result:
+                self.parentApp.setNextForm(None)
 
     class ConvertForm(npyscreen.ActionForm):
         def create(self):
             self.file = self.add(npyscreen.TitleFilenameCombo, name='Input File')
-            self.threshold = self.add(npyscreen.TitleSlider, out_of=256, step=1, label=True, value=args["threshold"], name='Threshold')
-            self.threshold_of = self.add(npyscreen.TitleSlider, out_of=256, step=1, label=True, value=args["trsh_of"], name='Threshold Offset')
-            self.rotation = self.add(npyscreen.TitleSlider, out_of=270, step=90, label=True, value=args["rotate"], name='Rotation')
+            self.threshold = self.add(npyscreen.TitleSlider,
+                                      out_of=256,
+                                      step=1,
+                                      label=True,
+                                      value=args["threshold"],
+                                      name='Threshold')
+            self.threshold_of = self.add(npyscreen.TitleSlider,
+                                         out_of=256,
+                                         step=1,
+                                         label=True,
+                                         value=args["trsh_of"],
+                                         name='Threshold Offset')
+            self.rotation = self.add(npyscreen.TitleSlider,
+                                     out_of=270,
+                                     step=90,
+                                     label=True,
+                                     value=args["rotate"],
+                                     name='Rotation')
             self.bicolor = self.add(npyscreen.CheckBox, name='Bicolor')
             self.invert = self.add(npyscreen.CheckBox, name='Invert B/R')
 
 
         def on_ok(self):
             npyscreen.blank_terminal()
-            picture = convert_image(src_file=self.file.value, threshold=int(self.threshold.value), bicolor=self.bicolor.value, trsh_of=int(self.threshold_of.value), rotation=int(self.rotation.value))
+            picture = convert_image(src_file=self.file.value, threshold=int(self.threshold.value),
+                                    bicolor=self.bicolor.value, trsh_of=int(self.threshold_of.value),
+                                    rotation=int(self.rotation.value))
             push_image(picture, flip=self.invert.value)
             self.parentApp.setNextForm('MAIN')
 
         def on_cancel(self):
-            self.parentApp.setNextForm(None)
+            self.parentApp.setNextForm('MAIN')
+
+    class LoadForm(npyscreen.ActionForm):
+        def create(self):
+            self.fileb = self.add(npyscreen.TitleFilenameCombo, name='Input Black File')
+            self.filer = self.add(npyscreen.TitleFilenameCombo, name='Input Red File')
+            self.invert = self.add(npyscreen.CheckBox, name='Invert B/R')
+
+        def on_ok(self):
+            npyscreen.blank_terminal()
+            picture = load_prepared_image(file_b=self.fileb.value, file_r=self.filer.value)
+            push_image(picture, flip=self.invert.value)
+            self.parentApp.setNextForm('MAIN')
+
+        def on_cancel(self):
+            self.parentApp.setNextForm('MAIN')
 
     class TUI(npyscreen.NPSAppManaged):
         def onStart(self):
             self.addForm('MAIN', ChooseForm, name='Choice')
             self.addForm('CONVERT', ConvertForm, name='Convert Mode')
+            self.addForm('LOAD', LoadForm, name='Load Mode')
 
     TUI().run()
 

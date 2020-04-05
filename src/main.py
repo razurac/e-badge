@@ -40,7 +40,7 @@ def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=ar
     image_file = Image.open(src_file)
     size = (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT)
     if rotation != 0:
-        image_file = image_file.rotate(args["rotate"])
+        image_file = image_file.rotate(rotation)
     image_file = ImageOps.fit(image_file, size, Image.ANTIALIAS, centering=(0.0, 0.5))
     image_file = image_file.convert('L')
     image_b = image_file.point(lambda p: p > threshold and 255)
@@ -141,8 +141,10 @@ def tui():
 
         def on_ok(self):
             npyscreen.blank_terminal()
-            picture = convert_image(src_file=self.file.value, threshold=int(self.threshold.value),
-                                    bicolor=self.bicolor.value, trsh_of=int(self.threshold_of.value),
+            picture = convert_image(src_file=self.file.value,
+                                    threshold=int(self.threshold.value),
+                                    bicolor=self.bicolor.value,
+                                    trsh_of=int(self.threshold_of.value),
                                     rotation=int(self.rotation.value))
             push_image(picture, flip=self.invert.value)
             self.parentApp.setNextForm('MAIN')

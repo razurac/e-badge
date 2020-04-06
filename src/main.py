@@ -2,9 +2,7 @@
 # -*- coding:utf-8 -*-
 
 import epd4in2b
-import time
 from PIL import Image,ImageDraw,ImageFont,ImageOps
-from distutils.util import strtobool
 import traceback
 import sys
 import argparse

@@ -2,14 +2,14 @@
 # -*- coding:utf-8 -*-
 
 import epd4in2b
-from PIL import Image,ImageDraw,ImageFont,ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import traceback
 import sys
 import argparse
 import npyscreen
 
 ####
-#Parser
+# Parser
 ####
 
 parser = argparse.ArgumentParser(description='Displays pictures on e-Paper')
@@ -22,7 +22,8 @@ parser.add_argument("-fr", "--file_red", help="Load black File")
 parser.add_argument("-t", "--threshold", required=False, type=int, default=125, help="Sets threshold for conversion")
 parser.add_argument("-b", "--bicolor", required=False, action='store_true', help="Enables Bicolor")
 parser.add_argument("-to", "--trsh_of", required=False, type=int, default=10, help="Changes threshold offset for bicolor conversion")
-parser.add_argument("-i", "--invert", required=False, action='store_true', help="Flips color")
+parser.add_argument("-s", "--swap", required=False, action='store_true', help="Swaps Black and red")
+parser.add_argument("-i", "--invert", required=False, action='store_true', help="Inverts color")
 parser.add_argument("-r", "--rotate", required=False, type=int, default=0, help="Rotates picture")
 args = vars(parser.parse_args())
 
@@ -34,14 +35,16 @@ if args["prepared"] and (args["file_black"] is None or args["file_black"] is Non
 # Basic image functionality
 ####
 # Converter for single images
-def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=args["bicolor"], trsh_of=args["trsh_of"], rotation=args["rotate"]):
+def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=args["bicolor"], trsh_of=args["trsh_of"], rotation=args["rotate"], invert=args["invert"]):
     image_file = Image.open(src_file)
     size = (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT)
     if rotation != 0:
         image_file = image_file.rotate(rotation)
-    image_file = ImageOps.fit(image_file, size, Image.ANTIALIAS, centering=(0.0, 0.5))
+    image_file = ImageOps.fit(image_file, size, Image.HAMMING, centering=(0.0, 0.5))
     image_file = image_file.convert('L')
     image_b = image_file.point(lambda p: p > threshold and 255)
+    if invert and not bicolor:
+        image_b = ImageOps.invert(image_b)
 
     if bicolor:
         print("Bicolor is on")
@@ -51,6 +54,7 @@ def convert_image(src_file=args["file"], threshold=args["threshold"], bicolor=ar
 
     return image_b
 
+
 # Loader for pre converted images
 def load_prepared_image(file_b=args["file_black"], file_r=args["file_red"]):
     image_b = Image.open(file_b)
@@ -59,8 +63,8 @@ def load_prepared_image(file_b=args["file_black"], file_r=args["file_red"]):
 
 
 # Pushes actual image
-def push_image(pic, flip=args["invert"]):
-#    blackimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255) # Might be obsolete
+def push_image(pic, swap=args["swap"]):
+    # blackimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)  # Might be obsolete
     redimage = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)
 
     if isinstance(pic, tuple):
@@ -69,7 +73,10 @@ def push_image(pic, flip=args["invert"]):
     else:
         blackimage = pic
 
-    if flip:
+    blackimage = blackimage.convert('L')
+    redimage = redimage.convert('L')
+
+    if swap:
         blackimage, redimage = redimage, blackimage
 
     try:
@@ -78,10 +85,11 @@ def push_image(pic, flip=args["invert"]):
         epd.display(epd.getbuffer(blackimage), epd.getbuffer(redimage))
         epd.sleep()
     except:
-        print('traceback.format_exc():\n%s',traceback.format_exc())
+        print('traceback.format_exc():\n%s', traceback.format_exc())
         epd = epd4in2b.EPD()
         epd.sleep()
         exit()
+
 
 #####
 # The TUI
@@ -134,7 +142,8 @@ def tui():
                                      value=args["rotate"],
                                      name='Rotation')
             self.bicolor = self.add(npyscreen.CheckBox, name='Bicolor')
-            self.invert = self.add(npyscreen.CheckBox, name='Invert B/R')
+            self.swap = self.add(npyscreen.CheckBox, name='Swap B/R')
+            self.invert = self.add(npyscreen.CheckBox, name="Invert color")
 
 
         def on_ok(self):
@@ -143,8 +152,9 @@ def tui():
                                     threshold=int(self.threshold.value),
                                     bicolor=self.bicolor.value,
                                     trsh_of=int(self.threshold_of.value),
-                                    rotation=int(self.rotation.value))
-            push_image(picture, flip=self.invert.value)
+                                    rotation=int(self.rotation.value),
+                                    invert=self.invert.value)
+            push_image(picture, swap=self.swap.value)
             self.parentApp.setNextForm('MAIN')
 
         def on_cancel(self):
@@ -154,12 +164,12 @@ def tui():
         def create(self):
             self.fileb = self.add(npyscreen.TitleFilenameCombo, name='Input Black File')
             self.filer = self.add(npyscreen.TitleFilenameCombo, name='Input Red File')
-            self.invert = self.add(npyscreen.CheckBox, name='Invert B/R')
+            self.swap = self.add(npyscreen.CheckBox, name='Swap B/R')
 
         def on_ok(self):
             npyscreen.blank_terminal()
             picture = load_prepared_image(file_b=self.fileb.value, file_r=self.filer.value)
-            push_image(picture, flip=self.invert.value)
+            push_image(picture, swap=self.swap.value)
             self.parentApp.setNextForm('MAIN')
 
         def on_cancel(self):
@@ -172,6 +182,7 @@ def tui():
             self.addForm('LOAD', LoadForm, name='Load Mode')
 
     TUI().run()
+
 
 def main():
     if args["prepared"]:
@@ -190,7 +201,6 @@ def main():
         print("You shouldn't be able to get to this error.\n"
               "If you did, then something might be wrong with argument Parsing")
         sys.exit(1)
-
 
 
 if __name__ == "__main__":

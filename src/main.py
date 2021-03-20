@@ -17,6 +17,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("-f", "--file", help="Input File for monochrome")
 group.add_argument("-p", "--prepared", action='store_true', help="Load prepared files")
 group.add_argument("--tui", action='store_true', help="Load TUI environment")
+group.add_argument("--txt", type=str, help="Write Text") 
 parser.add_argument("-fb", "--file_black", help="Load black File")
 parser.add_argument("-fr", "--file_red", help="Load black File")
 parser.add_argument("-t", "--threshold", required=False, type=int, default=125, help="Sets threshold for conversion")
@@ -25,10 +26,25 @@ parser.add_argument("-to", "--trsh_of", required=False, type=int, default=10, he
 parser.add_argument("-s", "--swap", required=False, action='store_true', help="Swaps Black and red")
 parser.add_argument("-i", "--invert", required=False, action='store_true', help="Inverts color")
 parser.add_argument("-r", "--rotate", required=False, type=int, default=0, help="Rotates picture")
+parser.add_argument("--font", required=False, type=str, default="font/open-sans/bold.ttf", help="Select Font")
+parser.add_argument("--size", required=False, type=int, default=20, help="Font Size")
+
 args = vars(parser.parse_args())
 
 if args["prepared"] and (args["file_black"] is None or args["file_black"] is None):
     parser.error("-p requires -fb and -fr")
+
+
+
+####
+# Helper functions
+###
+
+# get middle coordinates
+def refByMiddle(w, h, text, font_data):
+    size = font_data.getsize(text)
+
+    return(w - (size[0]/2), h - (size[1]/2), text, font_data)
 
 
 ####
@@ -60,6 +76,22 @@ def load_prepared_image(file_b=args["file_black"], file_r=args["file_red"]):
     image_b = Image.open(file_b)
     image_r = Image.open(file_r)
     return image_b, image_r
+
+
+
+
+# write text
+def text_writer(text,size=args["size"],font_file=args["font"]):
+    image_b = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)
+    drawblack = ImageDraw.Draw(image_b)
+
+    font_data = ImageFont.truetype(font_file, size)
+    data = refByMiddle(200, 150, text, font_data)
+    drawblack.text( (data[0], data[1]), data[2], font = data[3], fill = 0)
+    
+    return image_b
+
+
 
 
 # Pushes actual image
@@ -193,6 +225,9 @@ def main():
         picture = convert_image()
         push_image(picture)
         sys.exit()
+    elif args["txt"]:
+        picture = text_writer(args["txt"])
+        push_image(picture)
     elif args["tui"]:
         print("Loading TUI")
         tui()

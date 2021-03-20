@@ -135,7 +135,7 @@ def tui():
         def create(self):
             self.choice = self.add(npyscreen.TitleSelectOne,
                                    name='Choose Method',
-                                   values=['Convert', 'Load', 'Clear'])
+                                   values=['Convert', 'Load', 'Text', 'Clear'])
 
         def on_ok(self):
             if 0 in self.choice.value:
@@ -143,6 +143,8 @@ def tui():
             elif 1 in self.choice.value:
                 self.parentApp.setNextForm('LOAD')
             elif 2 in self.choice.value:
+                self.parentApp.setNextForm('TEXT')
+            elif 3 in self.choice.value:
                 npyscreen.blank_terminal()
                 epd = epd4in2b.EPD()
                 epd.init()
@@ -210,11 +212,28 @@ def tui():
         def on_cancel(self):
             self.parentApp.setNextForm('MAIN')
 
+    class TextForm(npyscreen.ActionForm):
+        def create(self):
+            self.text = self.add(npyscreen.TitleText, name='Enter Text')
+            self.size = self.add(npyscreen.TitleText, name='Size', value='30')
+            self.font = self.add(npyscreen.TitleFilenameCombo, name='Font', value=args["font"])
+
+        def on_ok(self):
+            npyscreen.blank_terminal()
+            picture = text_writer(text=self.text.value,size=int(self.size.value),font_file=self.font.value)
+            push_image(picture)
+            self.parentApp.setNextForm('MAIN')
+
+        def on_cancel(self):
+            self.parentApp.setNextForm('MAIN')
+
+
     class TUI(npyscreen.NPSAppManaged):
         def onStart(self):
             self.addForm('MAIN', ChooseForm, name='Choice')
             self.addForm('CONVERT', ConvertForm, name='Convert Mode')
             self.addForm('LOAD', LoadForm, name='Load Mode')
+            self.addForm('TEXT', TextForm, name='Text Mode')
 
     TUI().run()
 

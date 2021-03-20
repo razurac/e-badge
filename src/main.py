@@ -5,8 +5,12 @@ import epd4in2b
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import traceback
 import sys
+import os
 import argparse
 import npyscreen
+
+
+dirname = os.path.dirname(__file__)
 
 ####
 # Parser
@@ -26,14 +30,13 @@ parser.add_argument("-to", "--trsh_of", required=False, type=int, default=10, he
 parser.add_argument("-s", "--swap", required=False, action='store_true', help="Swaps Black and red")
 parser.add_argument("-i", "--invert", required=False, action='store_true', help="Inverts color")
 parser.add_argument("-r", "--rotate", required=False, type=int, default=0, help="Rotates picture")
-parser.add_argument("--font", required=False, type=str, default="font/open-sans/bold.ttf", help="Select Font")
+parser.add_argument("--font", required=False, type=str, default=str(dirname + "/font/open-sans/bold.ttf"), help="Select Font")
 parser.add_argument("--size", required=False, type=int, default=20, help="Font Size")
 
 args = vars(parser.parse_args())
 
 if args["prepared"] and (args["file_black"] is None or args["file_black"] is None):
     parser.error("-p requires -fb and -fr")
-
 
 
 ####

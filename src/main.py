@@ -5,8 +5,12 @@ import epd4in2b
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 import traceback
 import sys
+import os
 import argparse
 import npyscreen
+
+
+dirname = os.path.dirname(__file__)
 
 ####
 # Parser
@@ -17,6 +21,7 @@ group = parser.add_mutually_exclusive_group(required=True)
 group.add_argument("-f", "--file", help="Input File for monochrome")
 group.add_argument("-p", "--prepared", action='store_true', help="Load prepared files")
 group.add_argument("--tui", action='store_true', help="Load TUI environment")
+group.add_argument("--txt", type=str, help="Write Text") 
 parser.add_argument("-fb", "--file_black", help="Load black File")
 parser.add_argument("-fr", "--file_red", help="Load black File")
 parser.add_argument("-t", "--threshold", required=False, type=int, default=125, help="Sets threshold for conversion")
@@ -25,10 +30,24 @@ parser.add_argument("-to", "--trsh_of", required=False, type=int, default=10, he
 parser.add_argument("-s", "--swap", required=False, action='store_true', help="Swaps Black and red")
 parser.add_argument("-i", "--invert", required=False, action='store_true', help="Inverts color")
 parser.add_argument("-r", "--rotate", required=False, type=int, default=0, help="Rotates picture")
+parser.add_argument("--font", required=False, type=str, default=str(dirname + "/font/open-sans/bold.ttf"), help="Select Font")
+parser.add_argument("--size", required=False, type=int, default=20, help="Font Size")
+
 args = vars(parser.parse_args())
 
 if args["prepared"] and (args["file_black"] is None or args["file_black"] is None):
     parser.error("-p requires -fb and -fr")
+
+
+####
+# Helper functions
+###
+
+# get middle coordinates
+def refByMiddle(w, h, text, font_data):
+    size = font_data.getsize(text)
+
+    return(w - (size[0]/2), h - (size[1]/2), text, font_data)
 
 
 ####
@@ -60,6 +79,22 @@ def load_prepared_image(file_b=args["file_black"], file_r=args["file_red"]):
     image_b = Image.open(file_b)
     image_r = Image.open(file_r)
     return image_b, image_r
+
+
+
+
+# write text
+def text_writer(text,size=args["size"],font_file=args["font"]):
+    image_b = Image.new('1', (epd4in2b.EPD_WIDTH, epd4in2b.EPD_HEIGHT), 255)
+    drawblack = ImageDraw.Draw(image_b)
+
+    font_data = ImageFont.truetype(font_file, size)
+    data = refByMiddle(200, 150, text, font_data)
+    drawblack.text( (data[0], data[1]), data[2], font = data[3], fill = 0)
+    
+    return image_b
+
+
 
 
 # Pushes actual image
@@ -100,7 +135,7 @@ def tui():
         def create(self):
             self.choice = self.add(npyscreen.TitleSelectOne,
                                    name='Choose Method',
-                                   values=['Convert', 'Load', 'Clear'])
+                                   values=['Convert', 'Load', 'Text', 'Clear'])
 
         def on_ok(self):
             if 0 in self.choice.value:
@@ -108,6 +143,8 @@ def tui():
             elif 1 in self.choice.value:
                 self.parentApp.setNextForm('LOAD')
             elif 2 in self.choice.value:
+                self.parentApp.setNextForm('TEXT')
+            elif 3 in self.choice.value:
                 npyscreen.blank_terminal()
                 epd = epd4in2b.EPD()
                 epd.init()
@@ -175,11 +212,28 @@ def tui():
         def on_cancel(self):
             self.parentApp.setNextForm('MAIN')
 
+    class TextForm(npyscreen.ActionForm):
+        def create(self):
+            self.text = self.add(npyscreen.TitleText, name='Enter Text')
+            self.size = self.add(npyscreen.TitleText, name='Size', value='30')
+            self.font = self.add(npyscreen.TitleFilenameCombo, name='Font', value=args["font"])
+
+        def on_ok(self):
+            npyscreen.blank_terminal()
+            picture = text_writer(text=self.text.value,size=int(self.size.value),font_file=self.font.value)
+            push_image(picture)
+            self.parentApp.setNextForm('MAIN')
+
+        def on_cancel(self):
+            self.parentApp.setNextForm('MAIN')
+
+
     class TUI(npyscreen.NPSAppManaged):
         def onStart(self):
             self.addForm('MAIN', ChooseForm, name='Choice')
             self.addForm('CONVERT', ConvertForm, name='Convert Mode')
             self.addForm('LOAD', LoadForm, name='Load Mode')
+            self.addForm('TEXT', TextForm, name='Text Mode')
 
     TUI().run()
 
@@ -193,6 +247,9 @@ def main():
         picture = convert_image()
         push_image(picture)
         sys.exit()
+    elif args["txt"]:
+        picture = text_writer(args["txt"])
+        push_image(picture)
     elif args["tui"]:
         print("Loading TUI")
         tui()

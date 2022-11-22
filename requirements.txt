@@ -1,2 +1,2 @@
-pillow == 9.0.1
+pillow == 9.3.0
 npyscreen == 4.10.5
